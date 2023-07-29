@@ -3,15 +3,11 @@ const hangupButton = document.getElementById('hangupButton');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const fallingText = document.getElementById('fallingText');
-const callerIdInput = document.getElementById('callerId');
-const calleeIdInput = document.getElementById('calleeId');
 
 let localStream;
 let remoteStream;
 let pc1;
 let pc2;
-let localId;
-let remoteId;
 
 const startCall = async () => {
   try {
@@ -28,13 +24,13 @@ const startCall = async () => {
 
   pc1.onicecandidate = (event) => {
     if (event.candidate) {
-      sendMessage(remoteId, JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+      pc2.addIceCandidate(event.candidate);
     }
   };
 
   pc2.onicecandidate = (event) => {
     if (event.candidate) {
-      sendMessage(localId, JSON.stringify({ type: 'candidate', candidate: event.candidate }));
+      pc1.addIceCandidate(event.candidate);
     }
   };
 
@@ -49,7 +45,14 @@ const startCall = async () => {
 
   const offer = await pc1.createOffer();
   await pc1.setLocalDescription(offer);
-  sendMessage(remoteId, JSON.stringify({ type: 'offer', offer: offer }));
+  await pc2.setRemoteDescription(offer);
+
+  const answer = await pc2.createAnswer();
+  await pc2.setLocalDescription(answer);
+  await pc1.setRemoteDescription(answer);
+
+  // Start the falling text animation after setting up the call.
+//   animateFallingText();
 };
 
 const hangUp = () => {
@@ -60,22 +63,26 @@ const hangUp = () => {
   remoteVideo.srcObject = null;
 };
 
-// Assume you have a function sendMessage to send messages to the signaling server.
-// Modify this function according to your actual signaling server implementation.
-const sendMessage = (targetId, message) => {
-  // Replace the following code with your actual implementation
-  // that sends the message to the targetId using your signaling server.
-  console.log(`Sending message to ${targetId}: ${message}`);
+const animateFallingText = () => {
+  const characters = ['0', '1'];
+  const animationDuration = 1;
+  const characterCount = 50;
+  const charactersPerRow = 100;
+
+  fallingText.innerHTML = '';
+
+  for (let i = 0; i < characterCount; i++) {
+    setTimeout(() => {
+      fallingText.innerHTML += characters[Math.floor(Math.random() * characters.length)];
+      if (i % charactersPerRow === 0) fallingText.innerHTML += '<br />';
+    }, i * animationDuration * 10);
+  }
+
+  setTimeout(() => {
+    fallingText.innerHTML = '';
+    animateFallingText();
+  }, characterCount * animationDuration * 10);
 };
 
-startButton.addEventListener('click', () => {
-  localId = callerIdInput.value.trim();
-  remoteId = calleeIdInput.value.trim();
-  if (localId && remoteId) {
-    startCall();
-  } else {
-    alert('Please enter both your ID and your friend\'s ID.');
-  }
-});
-
+startButton.addEventListener('click', startCall);
 hangupButton.addEventListener('click', hangUp);
